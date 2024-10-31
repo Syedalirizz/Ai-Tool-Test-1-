@@ -3,91 +3,81 @@ from transformers import pipeline
 from PIL import Image
 import numpy as np
 
-# Define Streamlit app
-st.set_page_config(page_title="AI Tool", page_icon=":sparkles:", layout="wide")
+# Set your Hugging Face token here
+HUGGINGFACE_TOKEN = "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"
 
-# Load transformers models with explicit names
-text_generator = pipeline("text-generation", model="gpt2")
-image_generator = pipeline("image-generation", model="CompVis/stable-diffusion-v-1-4")
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-translator = pipeline("translation", model="Helsinki-NLP/opus-mt-en-fr")
+# Load pipelines with token
+text_gen_pipeline = pipeline("text-generation", model="gpt2", use_auth_token=HUGGINGFACE_TOKEN)
+image_gen_pipeline = pipeline("image-generation", model="CompVis/stable-diffusion-v-1-4", use_auth_token=HUGGINGFACE_TOKEN)
+summarization_pipeline = pipeline("summarization", model="facebook/bart-large-cnn", use_auth_token=HUGGINGFACE_TOKEN)
+sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert/distilbert-base-uncased-finetuned-sst-2-english", use_auth_token=HUGGINGFACE_TOKEN)
+translation_pipeline = pipeline("translation_en_to_fr", model="Helsinki-NLP/opus-mt-en-fr", use_auth_token=HUGGINGFACE_TOKEN)
 
-# CSS for styling
-st.markdown(
-    """
-    <style>
-    body {
-        background-color: #f0f2f5;
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    .header {
-        background-color: #6200ea;
-        color: white;
-        padding: 20px;
-        text-align: center;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
-    .button {
-        background-color: #6200ea;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        border: none;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .button:hover {
-        background-color: #3700b3;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Set up the Streamlit app layout
+st.set_page_config(page_title="AI Tools", layout="wide")
+st.title("AI Tools")
+st.markdown("<style>body{background-color: #f0f0f5;}</style>", unsafe_allow_html=True)
 
-# Create header
-st.markdown("<div class='header'><h1>AI Tool</h1></div>", unsafe_allow_html=True)
+# Sidebar for navigation
+st.sidebar.header("Navigation")
+option = st.sidebar.selectbox("Select an option:", ["Home", "Generate Image", "Text Generation", "Summarization", "Sentiment Analysis", "Translation"])
 
-# User input for text generation
-st.subheader("Generate Text")
-user_input = st.text_area("Enter your prompt:")
-if st.button("Generate"):
-    output = text_generator(user_input, max_length=100)[0]['generated_text']
-    st.write("Generated Text:")
-    st.write(output)
+# Home section
+if option == "Home":
+    st.subheader("Welcome to the AI Tools App")
+    st.write("This app allows you to generate images, create text, summarize content, analyze sentiment, and translate text.")
 
-# User input for image generation
-st.subheader("Generate Image")
-image_prompt = st.text_input("Enter image description:")
-if st.button("Generate Image"):
-    with st.spinner("Generating image..."):
-        image = image_generator(image_prompt)
-        st.image(image, caption=image_prompt, use_column_width=True)
+# Image Generation section
+elif option == "Generate Image":
+    st.subheader("Generate Image")
+    image_prompt = st.text_input("Enter a prompt for image generation:")
+    if st.button("Generate Image"):
+        if image_prompt:
+            with st.spinner("Generating image..."):
+                image = image_gen_pipeline(image_prompt)[0]['image']
+                st.image(image, caption="Generated Image", use_column_width=True)
 
-# User input for summarization
-st.subheader("Summarize Text")
-text_to_summarize = st.text_area("Enter text to summarize:")
-if st.button("Summarize"):
-    summary = summarizer(text_to_summarize, max_length=50, min_length=25, do_sample=False)
-    st.write("Summary:")
-    st.write(summary[0]['summary_text'])
+# Text Generation section
+elif option == "Text Generation":
+    st.subheader("Text Generation")
+    text_prompt = st.text_area("Enter a prompt for text generation:")
+    if st.button("Generate Text"):
+        if text_prompt:
+            with st.spinner("Generating text..."):
+                generated_text = text_gen_pipeline(text_prompt, max_length=100)[0]['generated_text']
+                st.write(generated_text)
 
-# User input for sentiment analysis
-st.subheader("Analyze Sentiment")
-sentiment_input = st.text_area("Enter text for sentiment analysis:")
-if st.button("Analyze"):
-    sentiment = sentiment_analyzer(sentiment_input)
-    st.write("Sentiment:")
-    st.write(sentiment)
+# Summarization section
+elif option == "Summarization":
+    st.subheader("Summarization")
+    summary_input = st.text_area("Enter text to summarize:")
+    if st.button("Summarize"):
+        if summary_input:
+            with st.spinner("Summarizing text..."):
+                summary = summarization_pipeline(summary_input, max_length=50)[0]['summary_text']
+                st.write(summary)
 
-# User input for translation
-st.subheader("Translate Text (English to French)")
-text_to_translate = st.text_area("Enter text to translate:")
-if st.button("Translate"):
-    translation = translator(text_to_translate)
-    st.write("Translation:")
-    st.write(translation[0]['translation_text'])
+# Sentiment Analysis section
+elif option == "Sentiment Analysis":
+    st.subheader("Sentiment Analysis")
+    sentiment_input = st.text_area("Enter text for sentiment analysis:")
+    if st.button("Analyze Sentiment"):
+        if sentiment_input:
+            with st.spinner("Analyzing sentiment..."):
+                sentiment_result = sentiment_pipeline(sentiment_input)[0]
+                st.write(f"Label: {sentiment_result['label']}, Score: {sentiment_result['score']:.2f}")
 
-# Footer
-st.markdown("<div class='footer'><p>AI Tool - All rights reserved</p></div>", unsafe_allow_html=True)
+# Translation section
+elif option == "Translation":
+    st.subheader("Translation")
+    translation_input = st.text_area("Enter text in English to translate to French:")
+    if st.button("Translate"):
+        if translation_input:
+            with st.spinner("Translating..."):
+                translated_text = translation_pipeline(translation_input)[0]['translation_text']
+                st.write(translated_text)
+
+# Add some space and styling
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<footer>Created by Your Name</footer>", unsafe_allow_html=True)
