@@ -1,76 +1,93 @@
 import streamlit as st
 from transformers import pipeline
 from PIL import Image
-import requests
-from io import BytesIO
+import numpy as np
 
-# Load models for various tasks
+# Define Streamlit app
+st.set_page_config(page_title="AI Tool", page_icon=":sparkles:", layout="wide")
+
+# Load transformers models with explicit names
 text_generator = pipeline("text-generation", model="gpt2")
+image_generator = pipeline("image-generation", model="CompVis/stable-diffusion-v-1-4")
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-sentiment_analyzer = pipeline("sentiment-analysis")
-translator = pipeline("translation_en_to_fr")
+sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+translator = pipeline("translation", model="Helsinki-NLP/opus-mt-en-fr")
 
-# Stable Diffusion API details (replace with your Hugging Face token)
-API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
-headers = {"Authorization": "Bearer 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"}
+# CSS for styling
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #f0f2f5;
+        font-family: 'Helvetica Neue', sans-serif;
+    }
+    .header {
+        background-color: #6200ea;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .button {
+        background-color: #6200ea;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    .button:hover {
+        background-color: #3700b3;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-def query_stable_diffusion(prompt):
-    response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
-    return response.content
+# Create header
+st.markdown("<div class='header'><h1>AI Tool</h1></div>", unsafe_allow_html=True)
 
-# Streamlit app layout
-st.title("AI Tools Hub")
-st.subheader("Generate Captions, Summarize, Translate, Analyze Sentiment, and Generate Images")
+# User input for text generation
+st.subheader("Generate Text")
+user_input = st.text_area("Enter your prompt:")
+if st.button("Generate"):
+    output = text_generator(user_input, max_length=100)[0]['generated_text']
+    st.write("Generated Text:")
+    st.write(output)
 
-# Caption Generator Section
-st.header("Caption Generator")
-user_input_caption = st.text_input("Enter a topic for caption generation:")
-if st.button("Generate Caption"):
-    if user_input_caption:
-        caption = text_generator(user_input_caption, max_length=30)[0]['generated_text']
-        st.write("Generated Caption:", caption)
-    else:
-        st.write("Please enter a topic for caption generation.")
-
-# Image Generation Section
-st.header("Image Generator")
-user_input_image = st.text_input("Enter a prompt for image generation:")
+# User input for image generation
+st.subheader("Generate Image")
+image_prompt = st.text_input("Enter image description:")
 if st.button("Generate Image"):
-    if user_input_image:
-        image_bytes = query_stable_diffusion(user_input_image)
-        image = Image.open(BytesIO(image_bytes))
-        st.image(image, caption=user_input_image)
-        image.save("generated_image.png")
-        st.download_button("Download Image", "generated_image.png")
-    else:
-        st.write("Please enter a prompt for image generation.")
+    with st.spinner("Generating image..."):
+        image = image_generator(image_prompt)
+        st.image(image, caption=image_prompt, use_column_width=True)
 
-# Text Summarization Section
-st.header("Text Summarization")
-user_input_summary = st.text_area("Enter text for summarization:")
+# User input for summarization
+st.subheader("Summarize Text")
+text_to_summarize = st.text_area("Enter text to summarize:")
 if st.button("Summarize"):
-    if user_input_summary:
-        summary = summarizer(user_input_summary, max_length=50, min_length=25, do_sample=False)
-        st.write("Summary:", summary[0]['summary_text'])
-    else:
-        st.write("Please enter text for summarization.")
+    summary = summarizer(text_to_summarize, max_length=50, min_length=25, do_sample=False)
+    st.write("Summary:")
+    st.write(summary[0]['summary_text'])
 
-# Translation Section
-st.header("Text Translation")
-user_input_translation = st.text_area("Enter English text to translate to French:")
+# User input for sentiment analysis
+st.subheader("Analyze Sentiment")
+sentiment_input = st.text_area("Enter text for sentiment analysis:")
+if st.button("Analyze"):
+    sentiment = sentiment_analyzer(sentiment_input)
+    st.write("Sentiment:")
+    st.write(sentiment)
+
+# User input for translation
+st.subheader("Translate Text (English to French)")
+text_to_translate = st.text_area("Enter text to translate:")
 if st.button("Translate"):
-    if user_input_translation:
-        translation = translator(user_input_translation)
-        st.write("Translated Text:", translation[0]['translation_text'])
-    else:
-        st.write("Please enter text to translate.")
+    translation = translator(text_to_translate)
+    st.write("Translation:")
+    st.write(translation[0]['translation_text'])
 
-# Sentiment Analysis Section
-st.header("Sentiment Analysis")
-user_input_sentiment = st.text_area("Enter text for sentiment analysis:")
-if st.button("Analyze Sentiment"):
-    if user_input_sentiment:
-        sentiment = sentiment_analyzer(user_input_sentiment)
-        st.write("Sentiment:", sentiment[0]['label'], "with score:", sentiment[0]['score'])
-    else:
-        st.write("Please enter text for sentiment analysis.")
+# Footer
+st.markdown("<div class='footer'><p>AI Tool - All rights reserved</p></div>", unsafe_allow_html=True)
