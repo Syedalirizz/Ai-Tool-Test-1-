@@ -1,83 +1,70 @@
 import streamlit as st
 from transformers import pipeline
 from PIL import Image
-import numpy as np
+import requests
+import io
 
-# Set your Hugging Face token here
-HUGGINGFACE_TOKEN = "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"
+# Set up Hugging Face token
+HUGGINGFACE_TOKEN = "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"  # Your token
 
-# Load pipelines with token
+# Load pipelines
 text_gen_pipeline = pipeline("text-generation", model="gpt2", use_auth_token=HUGGINGFACE_TOKEN)
-image_gen_pipeline = pipeline("image-generation", model="CompVis/stable-diffusion-v-1-4", use_auth_token=HUGGINGFACE_TOKEN)
 summarization_pipeline = pipeline("summarization", model="facebook/bart-large-cnn", use_auth_token=HUGGINGFACE_TOKEN)
 sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert/distilbert-base-uncased-finetuned-sst-2-english", use_auth_token=HUGGINGFACE_TOKEN)
 translation_pipeline = pipeline("translation_en_to_fr", model="Helsinki-NLP/opus-mt-en-fr", use_auth_token=HUGGINGFACE_TOKEN)
 
-# Set up the Streamlit app layout
-st.set_page_config(page_title="AI Tools", layout="wide")
-st.title("AI Tools")
-st.markdown("<style>body{background-color: #f0f0f5;}</style>", unsafe_allow_html=True)
+# Image generation function
+def generate_image(prompt):
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_TOKEN}"}
 
-# Sidebar for navigation
-st.sidebar.header("Navigation")
-option = st.sidebar.selectbox("Select an option:", ["Home", "Generate Image", "Text Generation", "Summarization", "Sentiment Analysis", "Translation"])
+    response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
+    if response.status_code == 200:
+        return response.content
+    else:
+        st.error("Error generating image!")
+        return None
 
-# Home section
-if option == "Home":
-    st.subheader("Welcome to the AI Tools App")
-    st.write("This app allows you to generate images, create text, summarize content, analyze sentiment, and translate text.")
+# Streamlit app layout
+st.title("AI Tool Suite")
+st.sidebar.title("Options")
 
-# Image Generation section
-elif option == "Generate Image":
-    st.subheader("Generate Image")
-    image_prompt = st.text_input("Enter a prompt for image generation:")
-    if st.button("Generate Image"):
-        if image_prompt:
-            with st.spinner("Generating image..."):
-                image = image_gen_pipeline(image_prompt)[0]['image']
-                st.image(image, caption="Generated Image", use_column_width=True)
+# Text Generation
+if st.sidebar.button("Generate Text"):
+    prompt = st.sidebar.text_input("Enter text prompt:")
+    if prompt:
+        generated_text = text_gen_pipeline(prompt, max_length=100, num_return_sequences=1)[0]['generated_text']
+        st.write("Generated Text:")
+        st.write(generated_text)
 
-# Text Generation section
-elif option == "Text Generation":
-    st.subheader("Text Generation")
-    text_prompt = st.text_area("Enter a prompt for text generation:")
-    if st.button("Generate Text"):
-        if text_prompt:
-            with st.spinner("Generating text..."):
-                generated_text = text_gen_pipeline(text_prompt, max_length=100)[0]['generated_text']
-                st.write(generated_text)
+# Image Generation
+if st.sidebar.button("Generate Image"):
+    image_prompt = st.sidebar.text_input("Enter image prompt:")
+    if image_prompt:
+        image_bytes = generate_image(image_prompt)
+        if image_bytes:
+            image = Image.open(io.BytesIO(image_bytes))
+            st.image(image, caption=image_prompt)
 
-# Summarization section
-elif option == "Summarization":
-    st.subheader("Summarization")
-    summary_input = st.text_area("Enter text to summarize:")
-    if st.button("Summarize"):
-        if summary_input:
-            with st.spinner("Summarizing text..."):
-                summary = summarization_pipeline(summary_input, max_length=50)[0]['summary_text']
-                st.write(summary)
+# Summarization
+if st.sidebar.button("Summarize Text"):
+    text_to_summarize = st.sidebar.text_area("Enter text to summarize:")
+    if text_to_summarize:
+        summary = summarization_pipeline(text_to_summarize, max_length=50, min_length=25, do_sample=False)[0]['summary_text']
+        st.write("Summary:")
+        st.write(summary)
 
-# Sentiment Analysis section
-elif option == "Sentiment Analysis":
-    st.subheader("Sentiment Analysis")
-    sentiment_input = st.text_area("Enter text for sentiment analysis:")
-    if st.button("Analyze Sentiment"):
-        if sentiment_input:
-            with st.spinner("Analyzing sentiment..."):
-                sentiment_result = sentiment_pipeline(sentiment_input)[0]
-                st.write(f"Label: {sentiment_result['label']}, Score: {sentiment_result['score']:.2f}")
+# Sentiment Analysis
+if st.sidebar.button("Analyze Sentiment"):
+    sentiment_text = st.sidebar.text_area("Enter text for sentiment analysis:")
+    if sentiment_text:
+        sentiment = sentiment_pipeline(sentiment_text)[0]
+        st.write("Sentiment:", sentiment['label'], "with a score of", sentiment['score'])
 
-# Translation section
-elif option == "Translation":
-    st.subheader("Translation")
-    translation_input = st.text_area("Enter text in English to translate to French:")
-    if st.button("Translate"):
-        if translation_input:
-            with st.spinner("Translating..."):
-                translated_text = translation_pipeline(translation_input)[0]['translation_text']
-                st.write(translated_text)
-
-# Add some space and styling
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<footer>Created by Your Name</footer>", unsafe_allow_html=True)
+# Translation
+if st.sidebar.button("Translate Text"):
+    text_to_translate = st.sidebar.text_area("Enter text to translate:")
+    if text_to_translate:
+        translated_text = translation_pipeline(text_to_translate)[0]['translation_text']
+        st.write("Translated Text:")
+        st.write(translated_text)
