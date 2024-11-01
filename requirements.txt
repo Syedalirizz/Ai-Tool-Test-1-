@@ -2,6 +2,3 @@ streamlit
 transformers
 requests
 Pillow
-torch  # Deep learning library required for model loading
-sentencepiece  # Required for tokenizers, especially if using T5 or similar models
-tensorflow  # Include TensorFlow for additional model support (optional)
