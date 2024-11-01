@@ -1,59 +1,40 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from diffusers import StableDiffusionPipeline
+from transformers import pipeline
 
-# Function to load models
+# Initialize the models
 @st.cache_resource
 def load_models():
-    # Load a lightweight text generation model (GPT-2)
-    tokenizer = AutoTokenizer.from_pretrained("gpt2")
-    model = AutoModelForCausalLM.from_pretrained("gpt2")
-
-    # Load the Stable Diffusion model for image generation
-    sd_pipe = StableDiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-1")
-    sd_pipe.to("cuda")  # Use GPU if available
-
-    return tokenizer, model, sd_pipe
+    # Load image generation model (Stable Diffusion)
+    image_gen = pipeline("image-generation", model="CompVis/stable-diffusion-v1-4")
+    # Load a simple text generation model
+    text_gen = pipeline("text-generation", model="gpt2")  # Using GPT-2 for text generation
+    return image_gen, text_gen
 
 # Load models
-tokenizer, model, sd_pipe = load_models()
+image_gen, text_gen = load_models()
 
-# Streamlit application interface
-st.title("AI Tools Prototype")
+# Title
+st.title("AI Tool Prototype")
 
-# Text Generation Section
+# Input section for text generation
 st.header("Text Generation")
-input_text = st.text_area("Enter your prompt for text generation:")
+text_input = st.text_area("Enter text prompt for generation:")
 if st.button("Generate Text"):
-    if input_text:
-        inputs = tokenizer(input_text, return_tensors="pt")
-        outputs = model.generate(**inputs, max_length=50)  # Generate up to 50 tokens
-        generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    if text_input:
+        generated_text = text_gen(text_input, max_length=50, num_return_sequences=1)[0]['generated_text']
         st.subheader("Generated Text:")
-        st.write(generated_text)  # Display generated text
+        st.write(generated_text)
     else:
-        st.error("Please enter a prompt.")
+        st.error("Please enter a text prompt.")
 
-# Image Generation Section
+# Input section for image generation
 st.header("Image Generation")
-image_prompt = st.text_input("Enter your prompt for image generation:")
+image_input = st.text_input("Enter a prompt for image generation:")
 if st.button("Generate Image"):
-    if image_prompt:
-        with st.spinner("Generating image..."):
-            generated_image = sd_pipe(image_prompt)["sample"][0]
-            st.subheader("Generated Image:")
-            st.image(generated_image, caption="Generated Image", use_column_width=True)  # Display generated image
+    if image_input:
+        generated_image = image_gen(image_input)[0]['images'][0]
+        st.subheader("Generated Image:")
+        st.image(generated_image, use_column_width=True)
     else:
-        st.error("Please enter a prompt.")
+        st.error("Please enter a prompt for image generation.")
 
-# Footer for the app
-st.markdown("""
-    ### About This App
-    This application utilizes state-of-the-art AI models for text and image generation.
-    - **Text Generation:** Powered by GPT-2, generates coherent text based on your prompt.
-    - **Image Generation:** Utilizes Stable Diffusion to create images based on descriptive prompts.
-""")
-
-# Running the Streamlit application
-if __name__ == "__main__":
-    st.run()
