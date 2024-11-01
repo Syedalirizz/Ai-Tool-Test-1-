@@ -1,4 +1,5 @@
 streamlit
 transformers
+diffusers
 torch
-Pillow  # For image processing
+Pillow
