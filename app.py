@@ -19,12 +19,16 @@ def generate_image(prompt):
 
 # Audio Transcription Function
 def transcribe_audio(uploaded_file):
-    audio_data = uploaded_file.read()  # Read content directly from UploadedFile
-    response = requests.post(audio_api_url, headers=headers, data=audio_data)
-    if response.status_code == 200:
-        return response.json().get("text", "Transcription not available.")
+    if uploaded_file is not None:
+        audio_data = uploaded_file.read()  # Read the file as bytes
+        response = requests.post(audio_api_url, headers=headers, data=audio_data)
+        if response.status_code == 200:
+            return response.json().get("text", "Transcription not available.")
+        else:
+            st.error("Error transcribing audio. Status code: " + str(response.status_code))
+            return None
     else:
-        st.error("Error transcribing audio.")
+        st.error("No file uploaded.")
         return None
 
 # Streamlit UI
@@ -45,9 +49,9 @@ if st.button("Generate Image"):
 # Audio Transcription Section
 st.header("Transcribe Audio")
 uploaded_file = st.file_uploader("Upload an audio file (e.g., .flac format):")
-if st.button("Transcribe Audio"):
-    if uploaded_file is not None:
-        transcription = transcribe_audio(uploaded_file)
+if uploaded_file is not None and st.button("Transcribe Audio"):
+    transcription = transcribe_audio(uploaded_file)
+    if transcription:
         st.write("Transcription:", transcription)
     else:
-        st.warning("Please upload an audio file.")
+        st.warning("Unable to generate transcription.")
