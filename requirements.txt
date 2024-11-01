@@ -1,4 +1,3 @@
+streamlit
 transformers
-torch
-Pillow
-requests
+torch  # Ensure PyTorch is compatible with your environment

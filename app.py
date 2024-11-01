@@ -1,43 +1,27 @@
 # Import necessary libraries
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-import requests
-from PIL import Image
-from io import BytesIO
+import streamlit as st
+from transformers import pipeline, AutoModel
 
-# Load Mistralai model for long document processing
-mistral_tokenizer = AutoTokenizer.from_pretrained("mistralai/Mixtral-8x7B-Instruct-v0.1")
-mistral_model = AutoModelForCausalLM.from_pretrained("mistralai/Mixtral-8x7B-Instruct-v0.1")
+# Load Stability AI image generation model
+image_generation_model = pipeline("image-generation", model="stabilityai/stable-diffusion-2-1-base")
 
-# Load Stability AI model for image generation
-stability_image_pipe = pipeline("image-generation", model="stabilityai/stable-diffusion-2-1")
+# Load Liquid1 model
+model = AutoModel.from_pretrained("Liquid1/llama-3-8b-liquid-coding-agent")
 
-def process_long_document(long_text, chunk_size=512):
-    chunks = [long_text[i:i + chunk_size] for i in range(0, len(long_text), chunk_size)]
-    responses = []
+# Streamlit app layout
+st.title("AI Tool")
 
-    for chunk in chunks:
-        inputs = mistral_tokenizer(chunk, return_tensors='pt', truncation=True, max_length=chunk_size)
-        outputs = mistral_model.generate(**inputs, max_length=150)
-        response = mistral_tokenizer.decode(outputs[0], skip_special_tokens=True)
-        responses.append(response)
-    
-    return " ".join(responses)
+# Input for image generation
+st.header("Image Generation")
+image_prompt = st.text_input("Enter a prompt for image generation:")
+if st.button("Generate Image"):
+    generated_image = image_generation_model(image_prompt)
+    st.image(generated_image[0], caption="Generated Image")
 
-def generate_image(prompt):
-    image = stability_image_pipe(prompt)
-    return image[0]['generated_image']
+# Input for text generation (if needed, adapt as necessary)
+st.header("Text Generation")
+user_input = st.text_input("Ask the AI:")
+if st.button("Generate Response"):
+    response = model(user_input)  # Adjust if using specific text generation pipeline
+    st.write(response)
 
-# Example usage
-if __name__ == "__main__":
-    # Process a long document
-    long_document = "Your long document text goes here..."
-    document_output = process_long_document(long_document)
-    print("Processed Document Output:\n", document_output)
-
-    # Generate an image based on a prompt
-    image_prompt = "A serene landscape with mountains and a lake"
-    image = generate_image(image_prompt)
-
-    # Display the generated image
-    img = Image.open(BytesIO(image))
-    img.show()
