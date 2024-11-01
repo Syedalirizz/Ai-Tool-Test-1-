@@ -1,39 +1,48 @@
 import streamlit as st
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import requests
-from PIL import Image
-import io
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from diffusers import StableDiffusionPipeline
 
-# Load alternative coding model
-tokenizer = AutoTokenizer.from_pretrained("facebook/opt-1.3b")
-model = AutoModelForCausalLM.from_pretrained("facebook/opt-1.3b")
+# Initialize the models
+@st.cache_resource
+def load_models():
+    # Load the Llama model
+    tokenizer = AutoTokenizer.from_pretrained("Liquid1/llama-3-8b-liquid-coding-agent")
+    model = AutoModelForCausalLM.from_pretrained("Liquid1/llama-3-8b-liquid-coding-agent")
+    
+    # Load the Stable Diffusion model
+    pipe = StableDiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-1")
+    pipe.to("cuda")  # Use GPU if available
 
-# Initialize Stability AI image generation pipeline
-stability_pipeline = pipeline("image-generation", model="stabilityai/stable-diffusion-2-1-base")
+    return tokenizer, model, pipe
 
-# Streamlit app title
-st.title("AI Tool Platform")
+tokenizer, model, sd_pipe = load_models()
 
-# Input text for coding assistance
-user_input = st.text_area("Enter your prompt for coding assistance:")
+# Streamlit interface
+st.title("AI Tools Application")
 
-if st.button("Get Coding Help"):
-    if user_input:
-        inputs = tokenizer(user_input, return_tensors="pt")
+# Text Generation
+st.header("Text Generation")
+input_text = st.text_area("Enter your prompt for text generation:")
+if st.button("Generate Text"):
+    if input_text:
+        inputs = tokenizer(input_text, return_tensors="pt")
         outputs = model.generate(**inputs)
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        st.subheader("Response:")
-        st.write(response)
+        generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        st.write(generated_text)
     else:
         st.error("Please enter a prompt.")
 
-# Input text for image generation
-image_prompt = st.text_input("Enter a prompt for image generation:")
-
+# Image Generation
+st.header("Image Generation")
+image_prompt = st.text_input("Enter your prompt for image generation:")
 if st.button("Generate Image"):
     if image_prompt:
-        image = stability_pipeline(image_prompt)[0]
-        image_url = image['url']
-        st.image(image_url, caption="Generated Image")
+        with st.spinner("Generating image..."):
+            generated_image = sd_pipe(image_prompt)["sample"][0]
+            st.image(generated_image, caption="Generated Image", use_column_width=True)
     else:
-        st.error("Please enter an image prompt.")
+        st.error("Please enter a prompt.")
+
+# Running the Streamlit application
+if __name__ == "__main__":
+    st.run()
