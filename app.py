@@ -2,11 +2,16 @@ import streamlit as st
 import requests
 import io
 from PIL import Image
+from transformers import WhisperProcessor
+import torch
 
 # API URLs and headers
 image_api_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
 audio_api_url = "https://api-inference.huggingface.co/models/openai/whisper-large-v2"
 headers = {"Authorization": "Bearer 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"}
+
+# Initialize WhisperProcessor
+processor = WhisperProcessor.from_pretrained("openai/whisper-large-v2")
 
 # Image Generation Function
 def generate_image(prompt):
@@ -21,7 +26,10 @@ def generate_image(prompt):
 def transcribe_audio(uploaded_file):
     if uploaded_file is not None:
         audio_data = uploaded_file.read()  # Read the file as bytes
-        response = requests.post(audio_api_url, headers=headers, data=audio_data)
+        inputs = processor(audio_data, sampling_rate=16000, return_tensors="pt")
+        
+        # Call the Whisper API with processed inputs
+        response = requests.post(audio_api_url, headers=headers, data=inputs["input_features"].numpy().tobytes())
         if response.status_code == 200:
             return response.json().get("text", "Transcription not available.")
         else:
