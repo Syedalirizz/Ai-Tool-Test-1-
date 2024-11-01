@@ -1,5 +1,4 @@
-streamlit
-requests
-Pillow
 transformers
 torch
+Pillow
+requests

@@ -1,42 +1,43 @@
-import streamlit as st
+# Import necessary libraries
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import requests
-import io
 from PIL import Image
-from transformers import AutoModel, AutoTokenizer
-import torch
+from io import BytesIO
 
-# Load Longformer model and tokenizer
-longformer_tokenizer = AutoTokenizer.from_pretrained("allenai/longformer-base-4096")
-longformer_model = AutoModel.from_pretrained("allenai/longformer-base-4096")
+# Load Mistralai model for long document processing
+mistral_tokenizer = AutoTokenizer.from_pretrained("mistralai/Mixtral-8x7B-Instruct-v0.1")
+mistral_model = AutoModelForCausalLM.from_pretrained("mistralai/Mixtral-8x7B-Instruct-v0.1")
 
-# API URL and headers for Stable Diffusion
-API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
-headers = {"Authorization": "Bearer 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"}
+# Load Stability AI model for image generation
+stability_image_pipe = pipeline("image-generation", model="stabilityai/stable-diffusion-2-1")
 
-# Function to query Stable Diffusion
-def query_stable_diffusion(prompt):
-    response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
-    return response.content
+def process_long_document(long_text, chunk_size=512):
+    chunks = [long_text[i:i + chunk_size] for i in range(0, len(long_text), chunk_size)]
+    responses = []
 
-# Streamlit UI
-st.title('AI Tools Suite: Image Generation and Long Document Processing')
+    for chunk in chunks:
+        inputs = mistral_tokenizer(chunk, return_tensors='pt', truncation=True, max_length=chunk_size)
+        outputs = mistral_model.generate(**inputs, max_length=150)
+        response = mistral_tokenizer.decode(outputs[0], skip_special_tokens=True)
+        responses.append(response)
+    
+    return " ".join(responses)
 
-# Image Generator Section
-st.header("Image Generator")
-user_input_image = st.text_input("Enter a prompt for image generation:")
-if st.button('Generate Image'):
-    image_bytes = query_stable_diffusion(user_input_image)
-    image = Image.open(io.BytesIO(image_bytes))
-    st.image(image, caption=user_input_image)
-    image.save("generated_image.png")
-    st.download_button("Download Image", "generated_image.png")
+def generate_image(prompt):
+    image = stability_image_pipe(prompt)
+    return image[0]['generated_image']
 
-# Long Document Processing Section
-st.header("Long Document Processing")
-user_input_long_doc = st.text_area("Enter a long document for processing:")
-if st.button('Process Document'):
-    inputs = longformer_tokenizer(user_input_long_doc, return_tensors="pt", max_length=4096, truncation=True)
-    with torch.no_grad():
-        outputs = longformer_model(**inputs)
-    st.write("Processed Outputs:", outputs)
+# Example usage
+if __name__ == "__main__":
+    # Process a long document
+    long_document = "Your long document text goes here..."
+    document_output = process_long_document(long_document)
+    print("Processed Document Output:\n", document_output)
 
+    # Generate an image based on a prompt
+    image_prompt = "A serene landscape with mountains and a lake"
+    image = generate_image(image_prompt)
+
+    # Display the generated image
+    img = Image.open(BytesIO(image))
+    img.show()
