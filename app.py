@@ -1,12 +1,12 @@
 import streamlit as st
-from transformers import AutoModel, AutoTokenizer, pipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import requests
 from PIL import Image
 import io
 
-# Load Llama-3 coding agent model
-tokenizer = AutoTokenizer.from_pretrained("Liquid1/llama-3-8b-liquid-coding-agent")
-model = AutoModel.from_pretrained("Liquid1/llama-3-8b-liquid-coding-agent")
+# Load alternative coding model
+tokenizer = AutoTokenizer.from_pretrained("facebook/opt-1.3b")
+model = AutoModelForCausalLM.from_pretrained("facebook/opt-1.3b")
 
 # Initialize Stability AI image generation pipeline
 stability_pipeline = pipeline("image-generation", model="stabilityai/stable-diffusion-2-1-base")
@@ -14,7 +14,7 @@ stability_pipeline = pipeline("image-generation", model="stabilityai/stable-diff
 # Streamlit app title
 st.title("AI Tool Platform")
 
-# Input text for Llama-3
+# Input text for coding assistance
 user_input = st.text_area("Enter your prompt for coding assistance:")
 
 if st.button("Get Coding Help"):
@@ -22,7 +22,7 @@ if st.button("Get Coding Help"):
         inputs = tokenizer(user_input, return_tensors="pt")
         outputs = model.generate(**inputs)
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        st.subheader("Llama-3 Response:")
+        st.subheader("Response:")
         st.write(response)
     else:
         st.error("Please enter a prompt.")
